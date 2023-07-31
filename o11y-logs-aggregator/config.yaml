@@ -1,0 +1,44 @@
+receivers:
+  awsecscontainermetrics:
+    collection_interval: 60s
+  loki:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:3100
+
+processors:
+  attributes:
+    actions:
+      - action: insert
+        key: loki.attribute.labels
+        value: az, ec2_instance_id, ec2_instance_type, private_ip, vpc_id, ami_id, account_id, hostname, container_id, container_name, ecs_cluster, ecs_task_arn, ecs_task_definition, source
+  resource:
+    attributes:
+      - action: insert
+        key: loki.format
+        value: json
+  batch:
+    timeout: 60s
+
+exporters:
+  prometheusremotewrite:
+    endpoint: <PROMETHEUS_ENDPOINT>
+    resource_to_telemetry_conversion:
+      enabled: true
+  loki:
+    endpoint: <LOKI_ENDPOINT>
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    metrics:
+      receivers: [awsecscontainermetrics]
+      exporters: [prometheusremotewrite]
+    logs:
+      receivers: [loki]
+      processors: [batch, resource, attributes]
+      exporters: [loki]

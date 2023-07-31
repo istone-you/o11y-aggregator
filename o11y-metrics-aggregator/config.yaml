@@ -1,0 +1,52 @@
+receivers:
+  awsecscontainermetrics:
+    collection_interval: 60s
+  otlp:
+    protocols:
+      http:
+
+processors:
+  filter:
+    metrics:
+      include:
+        match_type: regexp
+        metric_names:
+          - .*memory.reserved
+          - .*memory.utilized
+          - .*cpu.reserved
+          - .*cpu.utilized
+          - .*network.rate.rx
+          - .*network.rate.tx
+          - .*storage.read_bytes
+          - .*storage.write_bytes
+          - .*memory.usage.max
+          - .*memory.usage.limit
+          - .*cpu.cores
+
+exporters:
+  prometheusremotewrite:
+    endpoint: <PROMETHEUS_ENDPOINT>
+    resource_to_telemetry_conversion:
+      enabled: true
+  otlp:
+    endpoint: <TEMPO_ENDPOINT>
+    headers:
+      authorization: Basic <TEMPO_TOKEN>
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    metrics/own:
+      receivers: [awsecscontainermetrics]
+      processors: [filter]
+      exporters: [prometheusremotewrite]
+    metrics/other:
+      receivers: [otlp]
+      exporters: [prometheusremotewrite]
+    traces:
+      receivers: [otlp]
+      exporters: [otlp]
